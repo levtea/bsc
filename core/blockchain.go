@@ -1648,7 +1648,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Note all the components of block(td, hash->number map, header, body, receipts)
 	// should be written atomically. BlockBatch is used for containing all components.
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		blockBatch := bc.db.NewBatch()
 		rawdb.WriteTd(blockBatch, block.Hash(), block.NumberU64(), externTd)
@@ -1658,6 +1658,12 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		if err := blockBatch.Write(); err != nil {
 			log.Crit("Failed to write block into disk", "err", err)
 		}
+		wg.Done()
+	}()
+	// Write the block data to ankr database
+	go func() {
+		log.Info("ankr database store block is : ", block)
+		log.Info("ankr database store receipts is : ", receipts)
 		wg.Done()
 	}()
 	// Commit all cached state changes into underlying memory database.
