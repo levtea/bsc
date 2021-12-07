@@ -447,7 +447,7 @@ func WriteBody(db ethdb.KeyValueWriter, hash common.Hash, number uint64, body *t
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
 	WriteBodyRLP(db, hash, number, data)
-	// ankr store
+	// ankr store body
 	log.Info(fmt.Sprintf("ankr WriteBody block num is %x, body is %+v", number, body))
 }
 
