@@ -19,6 +19,7 @@ package rawdb
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"sort"
 
@@ -338,6 +339,7 @@ func WriteHeader(db ethdb.KeyValueWriter, header *types.Header) {
 	if err := db.Put(key, data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
+	log.Info(fmt.Sprintf("ankr WriteHeader header is%+v", header))
 }
 
 // DeleteHeader removes all block header data associated with a hash.
@@ -445,6 +447,7 @@ func WriteBody(db ethdb.KeyValueWriter, hash common.Hash, number uint64, body *t
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
 	WriteBodyRLP(db, hash, number, data)
+	log.Info(fmt.Sprintf("ankr WriteBody block num is %x, body is %+v", number, body))
 }
 
 func WriteDiffLayer(db ethdb.KeyValueWriter, hash common.Hash, layer *types.DiffLayer) {
@@ -660,6 +663,7 @@ func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, rec
 	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
+	log.Info(fmt.Sprintf("ankr WriteReceipts block num is %x, receipts is %+v", number, receipts))
 }
 
 // DeleteReceipts removes all receipt data associated with a block hash.
@@ -721,6 +725,7 @@ func WriteAncientBlock(db ethdb.AncientWriter, block *types.Block, receipts type
 	if err != nil {
 		log.Crit("Failed to write block data to ancient store", "err", err)
 	}
+	log.Info(fmt.Sprintf("ankr WriteAncientBlock block num is %x, header is %+v, body is %+v, receipts is %v", block.NumberU64(), block.Header(), block.Body(), receipts))
 	return len(headerBlob) + len(bodyBlob) + len(receiptBlob) + len(tdBlob) + common.HashLength
 }
 
