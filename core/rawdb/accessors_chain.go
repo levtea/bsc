@@ -726,7 +726,7 @@ func WriteAncientBlock(db ethdb.AncientWriter, block *types.Block, receipts type
 	if err != nil {
 		log.Crit("Failed to write block data to ancient store", "err", err)
 	}
-	log.Info(fmt.Sprintf("ankr WriteAncientBlock block num is %x, header is %+v, body is %+v, receipts is %v", block.NumberU64(), block.Header(), block.Body(), receipts))
+	// log.Info(fmt.Sprintf("ankr WriteAncientBlock block num is %x, header is %+v, body is %+v, receipts is %v", block.NumberU64(), block.Header(), block.Body(), receipts))
 	return len(headerBlob) + len(bodyBlob) + len(receiptBlob) + len(tdBlob) + common.HashLength
 }
 

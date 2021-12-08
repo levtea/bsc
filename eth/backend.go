@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/eth/ethsync"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/eth/protocols/diff"
@@ -140,6 +141,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
+	// sync kv ankr
+	syncKv := ethsync.NewKv("/bsc/97", []string{"127.0.0.1:6379"})
+	blockStore := ethsync.NewBlockStore(syncKv)
+
 	if err := pruner.RecoverPruning(stack.ResolvePath(""), chainDb, stack.ResolvePath(config.TrieCleanCacheJournal), config.TriesInMemory); err != nil {
 		log.Error("Failed to recover state", "error", err)
 	}
@@ -206,10 +211,16 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.PersistDiff {
 		bcOps = append(bcOps, core.EnablePersistDiff(config.DiffBlock))
 	}
-	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, bcOps...)
+	// eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, bcOps...)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	eth.blockchain, err = core.NewBlockChainSyncKv(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit, blockStore, bcOps...)
 	if err != nil {
 		return nil, err
 	}
+
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)

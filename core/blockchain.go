@@ -18,6 +18,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -39,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth/ethsync"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -240,6 +242,8 @@ type BlockChain struct {
 
 	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
 	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
+
+	blockStore *ethsync.BlockStore // ankr kv sync
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -294,6 +298,221 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		diffHashToPeers:       make(map[common.Hash]map[string]struct{}),
 		diffNumToBlockHashes:  make(map[uint64]map[common.Hash]struct{}),
 		diffPeersToDiffHashes: make(map[string]map[common.Hash]struct{}),
+	}
+	bc.validator = NewBlockValidator(chainConfig, bc, engine)
+	bc.processor = NewStateProcessor(chainConfig, bc, engine)
+
+	var err error
+	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
+	if err != nil {
+		return nil, err
+	}
+	bc.genesisBlock = bc.GetBlockByNumber(0)
+	if bc.genesisBlock == nil {
+		return nil, ErrNoGenesis
+	}
+
+	var nilBlock *types.Block
+	bc.currentBlock.Store(nilBlock)
+	bc.currentFastBlock.Store(nilBlock)
+
+	var nilHeader *types.Header
+	bc.highestVerifiedHeader.Store(nilHeader)
+
+	// Initialize the chain with ancient data if it isn't empty.
+	var txIndexBlock uint64
+
+	if bc.empty() {
+		rawdb.InitDatabaseFromFreezer(bc.db)
+		// If ancient database is not empty, reconstruct all missing
+		// indices in the background.
+		frozen, _ := bc.db.Ancients()
+		if frozen > 0 {
+			txIndexBlock = frozen
+		}
+	}
+	if err := bc.loadLastState(); err != nil {
+		return nil, err
+	}
+	// Make sure the state associated with the block is available
+	head := bc.CurrentBlock()
+	if _, err := state.New(head.Root(), bc.stateCache, bc.snaps); err != nil {
+		// Head state is missing, before the state recovery, find out the
+		// disk layer point of snapshot(if it's enabled). Make sure the
+		// rewound point is lower than disk layer.
+		var diskRoot common.Hash
+		if bc.cacheConfig.SnapshotLimit > 0 {
+			diskRoot = rawdb.ReadSnapshotRoot(bc.db)
+		}
+		if diskRoot != (common.Hash{}) {
+			log.Warn("Head state missing, repairing", "number", head.Number(), "hash", head.Hash(), "snaproot", diskRoot)
+
+			snapDisk, err := bc.SetHeadBeyondRoot(head.NumberU64(), diskRoot)
+			if err != nil {
+				return nil, err
+			}
+			// Chain rewound, persist old snapshot number to indicate recovery procedure
+			if snapDisk != 0 {
+				rawdb.WriteSnapshotRecoveryNumber(bc.db, snapDisk)
+			}
+		} else {
+			log.Warn("Head state missing, repairing", "number", head.Number(), "hash", head.Hash())
+			if err := bc.SetHead(head.NumberU64()); err != nil {
+				return nil, err
+			}
+		}
+	}
+	// Ensure that a previous crash in SetHead doesn't leave extra ancients
+	if frozen, err := bc.db.Ancients(); err == nil && frozen > 0 {
+		var (
+			needRewind bool
+			low        uint64
+		)
+		// The head full block may be rolled back to a very low height due to
+		// blockchain repair. If the head full block is even lower than the ancient
+		// chain, truncate the ancient store.
+		fullBlock := bc.CurrentBlock()
+		if fullBlock != nil && fullBlock.Hash() != bc.genesisBlock.Hash() && fullBlock.NumberU64() < frozen-1 {
+			needRewind = true
+			low = fullBlock.NumberU64()
+		}
+		// In fast sync, it may happen that ancient data has been written to the
+		// ancient store, but the LastFastBlock has not been updated, truncate the
+		// extra data here.
+		fastBlock := bc.CurrentFastBlock()
+		if fastBlock != nil && fastBlock.NumberU64() < frozen-1 {
+			needRewind = true
+			if fastBlock.NumberU64() < low || low == 0 {
+				low = fastBlock.NumberU64()
+			}
+		}
+		if needRewind {
+			log.Error("Truncating ancient chain", "from", bc.CurrentHeader().Number.Uint64(), "to", low)
+			if err := bc.SetHead(low); err != nil {
+				return nil, err
+			}
+		}
+	}
+	// The first thing the node will do is reconstruct the verification data for
+	// the head block (ethash cache or clique voting snapshot). Might as well do
+	// it in advance.
+	bc.engine.VerifyHeader(bc, bc.CurrentHeader(), true)
+
+	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
+	for hash := range BadHashes {
+		if header := bc.GetHeaderByHash(hash); header != nil {
+			// get the canonical block corresponding to the offending header's number
+			headerByNumber := bc.GetHeaderByNumber(header.Number.Uint64())
+			// make sure the headerByNumber (if present) is in our current canonical chain
+			if headerByNumber != nil && headerByNumber.Hash() == header.Hash() {
+				log.Error("Found bad hash, rewinding chain", "number", header.Number, "hash", header.ParentHash)
+				if err := bc.SetHead(header.Number.Uint64() - 1); err != nil {
+					return nil, err
+				}
+				log.Error("Chain rewind was successful, resuming normal operation")
+			}
+		}
+	}
+	// Load any existing snapshot, regenerating it if loading failed
+	if bc.cacheConfig.SnapshotLimit > 0 {
+		// If the chain was rewound past the snapshot persistent layer (causing
+		// a recovery block number to be persisted to disk), check if we're still
+		// in recovery mode and in that case, don't invalidate the snapshot on a
+		// head mismatch.
+		var recover bool
+
+		head := bc.CurrentBlock()
+		if layer := rawdb.ReadSnapshotRecoveryNumber(bc.db); layer != nil && *layer > head.NumberU64() {
+			log.Warn("Enabling snapshot recovery", "chainhead", head.NumberU64(), "diskbase", *layer)
+			recover = true
+		}
+		bc.snaps, _ = snapshot.New(bc.db, bc.stateCache.TrieDB(), bc.cacheConfig.SnapshotLimit, int(bc.cacheConfig.TriesInMemory), head.Root(), !bc.cacheConfig.SnapshotWait, true, recover)
+	}
+	// do options before start any routine
+	for _, option := range options {
+		bc = option(bc)
+	}
+	// Take ownership of this particular state
+	go bc.update()
+	if txLookupLimit != nil {
+		bc.txLookupLimit = *txLookupLimit
+
+		bc.wg.Add(1)
+		go bc.maintainTxIndex(txIndexBlock)
+	}
+	// If periodic cache journal is required, spin it up.
+	if bc.cacheConfig.TrieCleanRejournal > 0 {
+		if bc.cacheConfig.TrieCleanRejournal < time.Minute {
+			log.Warn("Sanitizing invalid trie cache journal time", "provided", bc.cacheConfig.TrieCleanRejournal, "updated", time.Minute)
+			bc.cacheConfig.TrieCleanRejournal = time.Minute
+		}
+		triedb := bc.stateCache.TrieDB()
+		bc.wg.Add(1)
+		go func() {
+			defer bc.wg.Done()
+			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
+		}()
+	}
+	// Need persist and prune diff layer
+	if bc.db.DiffStore() != nil {
+		go bc.trustedDiffLayerLoop()
+	}
+	go bc.untrustedDiffLayerPruneLoop()
+
+	return bc, nil
+}
+
+// NewBlockChain with ankr kv store
+func NewBlockChainSyncKv(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine,
+	vmConfig vm.Config, shouldPreserve func(block *types.Block) bool, txLookupLimit *uint64, syncBlock *ethsync.BlockStore,
+	options ...BlockChainOption) (*BlockChain, error) {
+	if cacheConfig == nil {
+		cacheConfig = defaultCacheConfig
+	}
+	if cacheConfig.TriesInMemory != 128 {
+		log.Warn("TriesInMemory isn't the default value(128), you need specify exact same TriesInMemory when prune data",
+			"triesInMemory", cacheConfig.TriesInMemory)
+	}
+	bodyCache, _ := lru.New(bodyCacheLimit)
+	bodyRLPCache, _ := lru.New(bodyCacheLimit)
+	receiptsCache, _ := lru.New(receiptsCacheLimit)
+	blockCache, _ := lru.New(blockCacheLimit)
+	txLookupCache, _ := lru.New(txLookupCacheLimit)
+	futureBlocks, _ := lru.New(maxFutureBlocks)
+	diffLayerCache, _ := lru.New(diffLayerCacheLimit)
+	diffLayerRLPCache, _ := lru.New(diffLayerRLPCacheLimit)
+
+	bc := &BlockChain{
+		chainConfig: chainConfig,
+		cacheConfig: cacheConfig,
+		db:          db,
+		triegc:      prque.New(nil),
+		stateCache: state.NewDatabaseWithConfigAndCache(db, &trie.Config{
+			Cache:     cacheConfig.TrieCleanLimit,
+			Journal:   cacheConfig.TrieCleanJournal,
+			Preimages: cacheConfig.Preimages,
+		}),
+		triesInMemory:         cacheConfig.TriesInMemory,
+		quit:                  make(chan struct{}),
+		shouldPreserve:        shouldPreserve,
+		bodyCache:             bodyCache,
+		bodyRLPCache:          bodyRLPCache,
+		receiptsCache:         receiptsCache,
+		blockCache:            blockCache,
+		diffLayerCache:        diffLayerCache,
+		diffLayerRLPCache:     diffLayerRLPCache,
+		txLookupCache:         txLookupCache,
+		futureBlocks:          futureBlocks,
+		engine:                engine,
+		vmConfig:              vmConfig,
+		diffQueue:             prque.New(nil),
+		diffQueueBuffer:       make(chan *types.DiffLayer),
+		blockHashToDiffLayers: make(map[common.Hash]map[common.Hash]*types.DiffLayer),
+		diffHashToBlockHash:   make(map[common.Hash]common.Hash),
+		diffHashToPeers:       make(map[common.Hash]map[string]struct{}),
+		diffNumToBlockHashes:  make(map[uint64]map[common.Hash]struct{}),
+		diffPeersToDiffHashes: make(map[string]map[common.Hash]struct{}),
+		blockStore:            syncBlock,
 	}
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
@@ -1404,6 +1623,11 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			// Flush data into ancient database.
 			size += rawdb.WriteAncientBlock(bc.db, block, receiptChain[i], bc.GetTd(block.Hash(), block.NumberU64()))
 
+			// ankr sync
+			if err := bc.blockStore.StoreBlock(context.Background(), block, receiptChain[i]); err != nil {
+				log.Error(err.Error())
+			}
+
 			// Write tx indices if any condition is satisfied:
 			// * If user requires to reserve all tx indices(txlookuplimit=0)
 			// * If all ancient tx indices are required to be reserved(txlookuplimit is even higher than ancientlimit)
@@ -1503,6 +1727,11 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			rawdb.WriteBody(batch, block.Hash(), block.NumberU64(), block.Body())
 			rawdb.WriteReceipts(batch, block.Hash(), block.NumberU64(), receiptChain[i])
 			rawdb.WriteTxLookupEntriesByBlock(batch, block) // Always write tx indices for live blocks, we assume they are needed
+
+			// ankr sync
+			if err := bc.blockStore.StoreBlock(context.Background(), block, receiptChain[i]); err != nil {
+				log.Error(err.Error())
+			}
 
 			// Write everything belongs to the blocks into the database. So that
 			// we can ensure all components of body is completed(body, receipts,

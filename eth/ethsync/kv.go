@@ -13,45 +13,42 @@ import (
 
 // perm store for ankr
 
-type kv struct {
+type KvSync struct {
 	Prefix string
-	PermKV redis.UniversalClient
+	TempKV redis.UniversalClient
 }
 
-func (kvc *kv) MergeKey(key string) string {
+func (kvc *KvSync) MergeKey(key string) string {
 	return kvc.mergeKey(key)
 }
 
-func NewKv(prefix string, permKVList []string) *kv {
-	kvc := &kv{
+func NewKv(prefix string, tempKVList []string) *KvSync {
+	kvc := &KvSync{
 		Prefix: prefix,
 	}
 
-	if len(permKVList) == 1 {
-		kvc.PermKV = redis.NewClient(&redis.Options{
-			Addr: permKVList[0],
+	if len(tempKVList) == 1 {
+		kvc.TempKV = redis.NewClient(&redis.Options{
+			Addr: tempKVList[0],
 		})
-	} else if len(permKVList) > 1 {
-		kvc.PermKV = redis.NewFailoverClient(&redis.FailoverOptions{
-			MasterName:    "mymaster",
-			SentinelAddrs: permKVList,
+	} else if len(tempKVList) > 1 {
+		kvc.TempKV = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:        tempKVList,
+			PoolSize:     32,
+			MinIdleConns: 32,
 		})
-		//kvc.PermKV = redis.NewClusterClient(&redis.ClusterOptions{
-		//	Addrs:        permKVList,
-		//	PoolSize:     32,
-		//	MinIdleConns: 32,
-		//})
 	}
-	if kvc.PermKV != nil {
-		sc := kvc.PermKV.Ping(context.Background())
+
+	if kvc.TempKV != nil {
+		sc := kvc.TempKV.Ping(context.Background())
 		if sc.Err() != nil {
-			log.Fatal(errors.New("permanent kv storage service ping failed"))
+			log.Fatal(errors.New("temporary kv storage service ping failed"))
 		}
 	}
 	return kvc
 }
 
-func (kvc *kv) SetInPerm(ctx context.Context, key string, value interface{}) error {
+func (kvc *KvSync) SetInKV(ctx context.Context, key string, value interface{}) error {
 	// if kvc.PermKV != nil {
 	// 	return kvc.PermKV.Set(ctx, kvc.mergeKey(key), value, 0).Err()
 	// }
@@ -60,6 +57,6 @@ func (kvc *kv) SetInPerm(ctx context.Context, key string, value interface{}) err
 	return nil
 }
 
-func (kvc *kv) mergeKey(key string) string {
+func (kvc *KvSync) mergeKey(key string) string {
 	return strings.Join([]string{kvc.Prefix, key}, "")
 }
