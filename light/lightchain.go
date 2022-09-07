@@ -442,6 +442,8 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 	lc.wg.Add(1)
 	defer lc.wg.Done()
 
+	log.Info("ankrHeaderTest!!!")
+
 	status, err := lc.hc.InsertHeaderChain(chain, start, lc.forker)
 	if err != nil || len(chain) == 0 {
 		return 0, err
