@@ -171,6 +171,7 @@ func newLightFetcher(chain *light.LightChain, engine consensus.Engine, peers *se
 		if ulc != nil {
 			checkFreq = 0
 		}
+		log.Info("ankrTestNewLightFetcher")
 		return chain.InsertHeaderChain(headers, checkFreq)
 	}
 	f := &lightFetcher{
