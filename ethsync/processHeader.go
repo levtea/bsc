@@ -1,6 +1,8 @@
 package ethsync
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -31,7 +33,8 @@ func init() {
 		for headers := range syncInfo.HeaderChan {
 			for _, header := range headers {
 				headerJson, _ := header.MarshalJSON()
-				log.Info("ankr get headers", header.Number.Uint64(), headerJson)
+				// log.Info("ankr get headers", header.Number.Uint64(), headerJson)
+				log.Info(fmt.Sprintf("ankr headers is %s", string(headerJson)))
 			}
 		}
 	}()
