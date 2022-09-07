@@ -31,7 +31,7 @@ func init() {
 		for headers := range syncInfo.HeaderChan {
 			for _, header := range headers {
 				headerJson, _ := header.MarshalJSON()
-				log.Info("ankr get headers", headerJson)
+				log.Info("ankr get headers", header.Number.Uint64(), headerJson)
 			}
 		}
 	}()
