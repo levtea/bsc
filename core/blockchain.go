@@ -2922,6 +2922,7 @@ func (bc *BlockChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		return 0, errChainStopped
 	}
 	defer bc.chainmu.Unlock()
+	log.Info("ankrTestBscCore")
 	_, err := bc.hc.InsertHeaderChain(chain, start, bc.forker)
 	return 0, err
 }
