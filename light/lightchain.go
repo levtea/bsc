@@ -465,6 +465,11 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		go func(chain []*types.Header) {
 			for _, header := range chain {
 				log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+				block, err := lc.GetBlockByHash(context.Background(), header.Hash())
+				if err != nil {
+					log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
+				}
+				log.Info(fmt.Sprintf("ankrBlock is %v", block))
 			}
 		}(chain)
 
