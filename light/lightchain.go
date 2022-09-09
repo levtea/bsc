@@ -442,11 +442,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 	lc.wg.Add(1)
 	defer lc.wg.Done()
 
-	log.Info("ankrTestBscLight")
 	status, err := lc.hc.InsertHeaderChain(chain, start, lc.forker)
-	for _, header := range chain {
-		log.Info("ankrTest header", header)
-	}
 
 	if err != nil || len(chain) == 0 {
 		return 0, err
@@ -461,6 +457,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 	case core.CanonStatTy:
 		lc.chainFeed.Send(core.ChainEvent{Block: block, Hash: block.Hash()})
 		lc.chainHeadFeed.Send(core.ChainHeadEvent{Block: block})
+		log.Info("ankrTestBscLightBlock", block)
 	case core.SideStatTy:
 		lc.chainSideFeed.Send(core.ChainSideEvent{Block: block})
 	}
