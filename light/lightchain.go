@@ -21,6 +21,7 @@ package light
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -35,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/ethsync"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -458,9 +458,16 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 	case core.CanonStatTy:
 		lc.chainFeed.Send(core.ChainEvent{Block: block, Hash: block.Hash()})
 		lc.chainHeadFeed.Send(core.ChainHeadEvent{Block: block})
+
 		// log.Info(fmt.Sprintf("ankrTestBscLightBlock %d", block.NumberU64()))
 		// ankr sync
-		ethsync.Extract(chain)
+		// ethsync.Extract(chain)
+		go func(chain []*types.Header) {
+			for _, header := range chain {
+				log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+			}
+		}(chain)
+
 	case core.SideStatTy:
 		lc.chainSideFeed.Send(core.ChainSideEvent{Block: block})
 	}
