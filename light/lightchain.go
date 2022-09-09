@@ -20,6 +20,7 @@ package light
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -36,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/ethsync"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -469,7 +471,11 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 				if err != nil {
 					log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
 				}
-				log.Info(fmt.Sprintf("block=%v\n", block))
+				body, err := json.Marshal(ethsync.KvBlock(block))
+				if err != nil {
+					log.Error("ankr json Marshal block fail, block is %v", err)
+				}
+				log.Info(fmt.Sprintf("block=%v\n", body))
 			}
 		}(chain)
 
