@@ -32,9 +32,9 @@ func init() {
 	go func() {
 		for headers := range syncInfo.HeaderChan {
 			for _, header := range headers {
-				headerJson, _ := header.MarshalJSON()
+				// headerJson, _ := header.MarshalJSON()
 				// log.Info("ankr get headers", header.Number.Uint64(), headerJson)
-				log.Info(fmt.Sprintf("ankr headers is %s", string(headerJson)))
+				log.Info(fmt.Sprintf("ankr headers is %s", header.Number.String()))
 			}
 		}
 	}()
