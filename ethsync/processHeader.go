@@ -3,6 +3,7 @@ package ethsync
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,7 +52,7 @@ func BytesToInt64String(buf []byte) string {
 	return res
 }
 
-func KvBlock(block *types.Block) *BlockOnlyTx {
+func KvBlock(block *types.Block, td *big.Int) *BlockOnlyTx {
 	var transactionsRes []string
 	if len(block.Transactions()) != 0 {
 		for _, t := range block.Transactions() {
@@ -83,7 +84,7 @@ func KvBlock(block *types.Block) *BlockOnlyTx {
 			Root:        block.Header().Root.String(),
 			Time:        "0x" + strconv.FormatUint(block.Header().Time, 16),
 		},
-		TotalDifficulty:  "0x" + block.Difficulty().Text(16),
+		TotalDifficulty:  "0x" + td.Text(16),
 		TransactionsRoot: block.Header().TxHash.String(),
 		Transactions:     transactionsRes,
 		Hash:             block.Hash().Hex(),

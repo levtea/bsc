@@ -467,15 +467,23 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		go func(chain []*types.Header) {
 			for _, header := range chain {
 				log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+				// block
 				block, err := lc.GetBlockByHash(context.Background(), header.Hash())
 				if err != nil {
 					log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
 				}
-				body, err := json.Marshal(ethsync.KvBlock(block))
+				body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
 				if err != nil {
 					log.Error("ankr json Marshal block fail, block is %v", err)
 				}
-				log.Info(fmt.Sprintf("block=%s\n", string(body)))
+				log.Info(fmt.Sprintf("block=%s", string(body)))
+
+				// tx
+				for _, tx := range block.Transactions() {
+					txJson, _ := tx.MarshalJSON()
+					log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
+				}
+
 			}
 		}(chain)
 
