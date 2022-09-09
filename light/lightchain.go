@@ -474,7 +474,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 				}
 				body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
 				if err != nil {
-					log.Error("ankr json Marshal block fail, block is %v", err)
+					log.Error("ankr json Marshal block fail, err is %v", err)
 				}
 				log.Info(fmt.Sprintf("block=%s", string(body)))
 
@@ -482,6 +482,17 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 				for _, tx := range block.Transactions() {
 					txJson, _ := tx.MarshalJSON()
 					log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
+				}
+
+				// receipt
+				receipts, err := GetBlockReceipts(context.Background(), lc.odr, block.Hash(), block.NumberU64())
+				if err != nil {
+					log.Error("ankr GetBlockReceipts fail, err is %v", err)
+				}
+				for _, receipt := range receipts {
+					receiptJson, _ := receipt.MarshalJSON()
+					log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
+
 				}
 
 			}
