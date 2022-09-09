@@ -1341,7 +1341,6 @@ func (d *Downloader) processHeaders(origin uint64, td *big.Int) error {
 						frequency = 1
 					}
 					if len(chunkHeaders) > 0 {
-						log.Info("ankrTestEthDownloader")
 						if n, err := d.lightchain.InsertHeaderChain(chunkHeaders, frequency); err != nil {
 							rollbackErr = err
 

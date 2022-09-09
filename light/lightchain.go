@@ -444,6 +444,10 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 
 	log.Info("ankrTestBscLight")
 	status, err := lc.hc.InsertHeaderChain(chain, start, lc.forker)
+	for _, header := range chain {
+		log.Info("ankrTest header", header)
+	}
+
 	if err != nil || len(chain) == 0 {
 		return 0, err
 	}
