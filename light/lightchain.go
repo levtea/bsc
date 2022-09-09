@@ -460,7 +460,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		lc.chainHeadFeed.Send(core.ChainHeadEvent{Block: block})
 		// log.Info(fmt.Sprintf("ankrTestBscLightBlock %d", block.NumberU64()))
 		// ankr sync
-		ethsync.Extract(lastHeader)
+		ethsync.Extract(chain)
 	case core.SideStatTy:
 		lc.chainSideFeed.Send(core.ChainSideEvent{Block: block})
 	}

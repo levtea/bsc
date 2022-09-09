@@ -16,13 +16,13 @@ var (
 )
 
 type SyncInfo struct {
-	HeaderChan chan *types.Header
+	HeaderChan chan []*types.Header
 }
 
 func NewSyncInfo() *SyncInfo {
-	headerChan := make(chan *types.Header, bufferSize)
+	headersChan := make(chan []*types.Header, bufferSize)
 	return &SyncInfo{
-		HeaderChan: headerChan,
+		HeaderChan: headersChan,
 	}
 }
 
@@ -30,16 +30,19 @@ func init() {
 	log.Info("ankr start get headers")
 	syncInfo = NewSyncInfo()
 	go func() {
-		for header := range syncInfo.HeaderChan {
+		for headers := range syncInfo.HeaderChan {
+
+			for _, header := range headers {
+				log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+			}
 
 			// headerJson, _ := header.MarshalJSON()
 			// log.Info("ankr get headers", header.Number.Uint64(), headerJson)
-			log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 
 		}
 	}()
 }
 
-func Extract(header *types.Header) {
-	syncInfo.HeaderChan <- header
+func Extract(headers []*types.Header) {
+	syncInfo.HeaderChan <- headers
 }
