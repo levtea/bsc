@@ -469,7 +469,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 				if err != nil {
 					log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
 				}
-				log.Info(fmt.Sprintf("block=%+v\n", block))
+				log.Info(fmt.Sprintf("block=%v\n", block))
 			}
 		}(chain)
 
