@@ -475,7 +475,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 				if err != nil {
 					log.Error("ankr json Marshal block fail, block is %v", err)
 				}
-				log.Info(fmt.Sprintf("block=%v\n", body))
+				log.Info(fmt.Sprintf("block=%s\n", string(body)))
 			}
 		}(chain)
 
