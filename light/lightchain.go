@@ -472,6 +472,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 					block, err := lc.GetBlockByHash(context.Background(), header.Hash())
 					if err != nil {
 						log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
+						return
 					}
 					log.Info(fmt.Sprintf("!!!!!!!!ankr block is %v", block))
 					log.Info(fmt.Sprintf("!!!!!!!!ankr blockHash is %s", block.Hash()))
