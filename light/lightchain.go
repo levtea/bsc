@@ -464,39 +464,41 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		// log.Info(fmt.Sprintf("ankrTestBscLightBlock %d", block.NumberU64()))
 		// ankr sync
 		// ethsync.Extract(chain)
-		go func(chain []*types.Header) {
-			for _, header := range chain {
-				log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
-				// block
-				block, err := lc.GetBlockByHash(context.Background(), header.Hash())
-				if err != nil {
-					log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
-				}
-				body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
-				if err != nil {
-					log.Error("ankr json Marshal block fail, err is %v", err)
-				}
-				log.Info(fmt.Sprintf("block=%s", string(body)))
+		if len(chain) > 0 {
+			go func(chain []*types.Header) {
+				for _, header := range chain {
+					log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+					// block
+					block, err := lc.GetBlockByHash(context.Background(), header.Hash())
+					if err != nil {
+						log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
+					}
+					body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
+					if err != nil {
+						log.Error("ankr json Marshal block fail, err is %v", err)
+					}
+					log.Info(fmt.Sprintf("block=%s", string(body)))
 
-				// tx
-				for _, tx := range block.Transactions() {
-					txJson, _ := tx.MarshalJSON()
-					log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
-				}
+					// tx
+					for _, tx := range block.Transactions() {
+						txJson, _ := tx.MarshalJSON()
+						log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
+					}
 
-				// receipt
-				receipts, err := GetBlockReceipts(context.Background(), lc.odr, block.Hash(), block.NumberU64())
-				if err != nil {
-					log.Error("ankr GetBlockReceipts fail, err is %v", err)
-				}
-				for _, receipt := range receipts {
-					receiptJson, _ := receipt.MarshalJSON()
-					log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
+					// receipt
+					receipts, err := GetBlockReceipts(context.Background(), lc.odr, block.Hash(), block.NumberU64())
+					if err != nil {
+						log.Error("ankr GetBlockReceipts fail, err is %v", err)
+					}
+					for _, receipt := range receipts {
+						receiptJson, _ := receipt.MarshalJSON()
+						log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
+
+					}
 
 				}
-
-			}
-		}(chain)
+			}(chain)
+		}
 
 	case core.SideStatTy:
 		lc.chainSideFeed.Send(core.ChainSideEvent{Block: block})
