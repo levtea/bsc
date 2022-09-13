@@ -473,6 +473,8 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 					if err != nil {
 						log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
 					}
+					log.Info(fmt.Sprintf("!!!!!!!!ankr blockHash is %s", block.Hash()))
+
 					body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
 					if err != nil {
 						log.Error("ankr json Marshal block fail, err is %v", err)
