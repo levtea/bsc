@@ -16,6 +16,7 @@ const (
 )
 
 func syncByHeader(lc *LightChain, chain []*types.Header) error {
+	willInsertHeaderSet := make(map[*types.Header]struct{})
 	for _, header := range chain {
 		log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 		// block
@@ -56,6 +57,30 @@ func syncByHeader(lc *LightChain, chain []*types.Header) error {
 			receiptJson, _ := receipt.MarshalJSON()
 			log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
 			log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
+
+			if receipt.ContractAddress.String() != EmptyContractAddress {
+				willInsertHeaderSet[header] = struct{}{}
+			}
+		}
+		if len(willInsertHeaderSet) != 0 {
+			for headerInsert := range willInsertHeaderSet {
+				block, err := lc.GetBlockByHash(context.Background(), headerInsert.Hash())
+				if err != nil {
+					return errors.New(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
+				}
+				log.Info(fmt.Sprintf("ankr savedBlock is %s", block.Number()))
+				// body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
+				// if err != nil {
+				// 	log.Error("ankr json Marshal block fail, err is %v", err)
+				// }
+				// log.Info(fmt.Sprintf("block=%s", string(body)))
+
+				// // tx
+				// for _, tx := range block.Transactions() {
+				// 	txJson, _ := tx.MarshalJSON()
+				// 	log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
+				// }
+			}
 		}
 	}
 	return nil
