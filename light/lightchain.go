@@ -21,7 +21,6 @@ package light
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -462,47 +461,14 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		// log.Info(fmt.Sprintf("ankrTestBscLightBlock %d", block.NumberU64()))
 		// ankr sync
 		// ethsync.Extract(chain)
-		if len(chain) < 0 {
-			go func(headers []*types.Header) {
-				// for _, header := range chain {
-				// 	log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
-				// 	// block
-				// 	block, err := lc.GetBlockByHash(context.Background(), header.Hash())
-				// 	if err != nil {
-				// 		log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
-				// 		return
-				// 	}
-				// 	body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
-				// 	if err != nil {
-				// 		log.Error("ankr json Marshal block fail, err is %v", err)
-				// 	}
-				// 	log.Info(fmt.Sprintf("block=%s", string(body)))
-
-				// 	// tx
-				// 	for _, tx := range block.Transactions() {
-				// 		txJson, _ := tx.MarshalJSON()
-				// 		log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
-				// 	}
-
-				// 	// receipt
-				// 	receipts, err := GetBlockReceipts(context.Background(), lc.odr, block.Hash(), block.NumberU64())
-				// 	if err != nil {
-				// 		log.Error("ankr GetBlockReceipts fail, err is %v", err)
-				// 		return
-				// 	}
-				// 	for _, receipt := range receipts {
-				// 		receiptJson, _ := receipt.MarshalJSON()
-				// 		log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
-
-				// 	}
-
-				// }
-				err := syncByHeader(lc, headers)
-				if err != nil {
-					log.Error(fmt.Sprintf("ankr syncByHeader error is %v", err))
-				}
-			}(chain)
-		}
+		// if len(chain) > 0 {
+		// 	go func(headers []*types.Header) {
+		// 		err := syncByHeader(lc, headers)
+		// 		if err != nil {
+		// 			log.Error(fmt.Sprintf("ankr syncByHeader error is %v", err))
+		// 		}
+		// 	}(chain)
+		// }
 
 	case core.SideStatTy:
 		lc.chainSideFeed.Send(core.ChainSideEvent{Block: block})
