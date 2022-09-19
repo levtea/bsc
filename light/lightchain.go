@@ -463,7 +463,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		// ankr sync
 		// ethsync.Extract(chain)
 		if len(chain) > 0 {
-			go func(chain []*types.Header) {
+			go func(headers []*types.Header) {
 				// for _, header := range chain {
 				// 	log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 				// 	// block
@@ -497,7 +497,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 				// 	}
 
 				// }
-				err := syncByHeader(lc, chain)
+				err := syncByHeader(lc, headers)
 				if err != nil {
 					log.Error(fmt.Sprintf("ankr syncByHeader error is %v", err))
 				}

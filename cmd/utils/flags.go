@@ -900,6 +900,13 @@ var (
 		Name:  "check-snapshot-with-mpt",
 		Usage: "Enable checking between snapshot and MPT ",
 	}
+
+	// ankr bridge contract address
+	BridgeFlag = cli.StringFlag{
+		Name:  "bridge.contract.address",
+		Usage: "bridge.contract.address",
+		Value: "",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
