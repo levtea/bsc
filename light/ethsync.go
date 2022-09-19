@@ -50,7 +50,7 @@ func syncByHeader(lc *LightChain, chain []*types.Header) error {
 			receiptJson, _ := receipt.MarshalJSON()
 			log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
 
-			log.Info(fmt.Sprintf("ankr contract is %s", receipt.ContractAddress))
+			log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
 
 		}
 	}
