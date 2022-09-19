@@ -462,7 +462,7 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		// log.Info(fmt.Sprintf("ankrTestBscLightBlock %d", block.NumberU64()))
 		// ankr sync
 		// ethsync.Extract(chain)
-		if len(chain) == 1 {
+		if len(chain) < 0 {
 			go func(headers []*types.Header) {
 				// for _, header := range chain {
 				// 	log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
