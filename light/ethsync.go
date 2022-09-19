@@ -47,10 +47,10 @@ func syncByHeader(lc *LightChain, chain []*types.Header) error {
 			return errors.New(fmt.Sprintf("ankr GetBlockReceipts error is %v", err.Error()))
 		}
 		for _, receipt := range receipts {
-			// receiptJson, _ := receipt.MarshalJSON()
-			// log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
+			receiptJson, _ := receipt.MarshalJSON()
+			log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
 
-			log.Info(fmt.Sprintf("ankrReceipt contract is %s", receipt.ContractAddress))
+			log.Info(fmt.Sprintf("ankr contract is %s", receipt.ContractAddress))
 
 		}
 	}
