@@ -20,7 +20,6 @@ package light
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -37,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/ethsync"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -466,38 +464,42 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 		// ethsync.Extract(chain)
 		if len(chain) > 0 {
 			go func(chain []*types.Header) {
-				for _, header := range chain {
-					log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
-					// block
-					block, err := lc.GetBlockByHash(context.Background(), header.Hash())
-					if err != nil {
-						log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
-						return
-					}
-					body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
-					if err != nil {
-						log.Error("ankr json Marshal block fail, err is %v", err)
-					}
-					log.Info(fmt.Sprintf("block=%s", string(body)))
+				// for _, header := range chain {
+				// 	log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+				// 	// block
+				// 	block, err := lc.GetBlockByHash(context.Background(), header.Hash())
+				// 	if err != nil {
+				// 		log.Error(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
+				// 		return
+				// 	}
+				// 	body, err := json.Marshal(ethsync.KvBlock(block, lc.GetTd(block.Hash(), block.NumberU64())))
+				// 	if err != nil {
+				// 		log.Error("ankr json Marshal block fail, err is %v", err)
+				// 	}
+				// 	log.Info(fmt.Sprintf("block=%s", string(body)))
 
-					// tx
-					for _, tx := range block.Transactions() {
-						txJson, _ := tx.MarshalJSON()
-						log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
-					}
+				// 	// tx
+				// 	for _, tx := range block.Transactions() {
+				// 		txJson, _ := tx.MarshalJSON()
+				// 		log.Info(fmt.Sprintf("ankrTx is %s", string(txJson)))
+				// 	}
 
-					// receipt
-					receipts, err := GetBlockReceipts(context.Background(), lc.odr, block.Hash(), block.NumberU64())
-					if err != nil {
-						log.Error("ankr GetBlockReceipts fail, err is %v", err)
-						return
-					}
-					for _, receipt := range receipts {
-						receiptJson, _ := receipt.MarshalJSON()
-						log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
+				// 	// receipt
+				// 	receipts, err := GetBlockReceipts(context.Background(), lc.odr, block.Hash(), block.NumberU64())
+				// 	if err != nil {
+				// 		log.Error("ankr GetBlockReceipts fail, err is %v", err)
+				// 		return
+				// 	}
+				// 	for _, receipt := range receipts {
+				// 		receiptJson, _ := receipt.MarshalJSON()
+				// 		log.Info(fmt.Sprintf("ankrReceipt is %s", string(receiptJson)))
 
-					}
+				// 	}
 
+				// }
+				err := syncByHeader(lc, chain)
+				if err != nil {
+					log.Error(fmt.Sprintf("ankr syncByHeader error is %v", err))
 				}
 			}(chain)
 		}
