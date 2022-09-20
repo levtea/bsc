@@ -20,12 +20,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -45,6 +47,7 @@ func GetHeaderByNumber(ctx context.Context, odr OdrBackend, number uint64) (*typ
 	// But if it's pruned, re-fetch from network again.
 	if (hash != common.Hash{}) {
 		if header := rawdb.ReadHeader(db, hash, number); header != nil {
+			log.Info("ReadHeaderFromDB GetHeaderByNumber")
 			return header, nil
 		}
 	}
@@ -64,6 +67,12 @@ func GetHeaderByNumber(ctx context.Context, odr OdrBackend, number uint64) (*typ
 		return nil, err
 	}
 	return r.Header, nil
+}
+
+func GetTransactionByHashFromDB(ctx context.Context, odr OdrBackend, hash common.Hash) *types.Transaction {
+	db := odr.Database()
+	tx, _, _, _ := rawdb.ReadTransaction(db, hash)
+	return tx
 }
 
 // GetCanonicalHash retrieves the canonical block hash corresponding to the number.
@@ -276,6 +285,11 @@ func GetBloomBits(ctx context.Context, odr OdrBackend, bit uint, sections []uint
 // deliberately, etc). Therefore, unretrieved transactions will receive a certain
 // number of retrys, thus giving a weak guarantee.
 func GetTransaction(ctx context.Context, odr OdrBackend, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
+
+	txFromDB := GetTransactionByHashFromDB(ctx, odr, txHash)
+
+	log.Info(fmt.Sprintf("GetTransactionByHashFromDB %v", txFromDB))
+
 	r := &TxStatusRequest{Hashes: []common.Hash{txHash}}
 	if err := odr.RetrieveTxStatus(ctx, r); err != nil || r.Status[0].Status != core.TxStatusIncluded {
 		return nil, common.Hash{}, 0, 0, err
