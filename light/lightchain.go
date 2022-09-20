@@ -286,9 +286,9 @@ func (lc *LightChain) HasBlock(hash common.Hash, number uint64) bool {
 // caching it if found.
 func (lc *LightChain) GetBlock(ctx context.Context, hash common.Hash, number uint64) (*types.Block, error) {
 	// Short circuit if the block's already in the cache, retrieve otherwise
-	// if block, ok := lc.blockCache.Get(hash); ok {
-	// 	return block.(*types.Block), nil
-	// }
+	if block, ok := lc.blockCache.Get(hash); ok {
+		return block.(*types.Block), nil
+	}
 	blockFromDB := GetBlockFromDB(ctx, lc.odr, hash, number)
 	log.Info(fmt.Sprintf("GetBlockFromDB %v", blockFromDB))
 	block, err := GetBlock(ctx, lc.odr, hash, number)
