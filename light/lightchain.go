@@ -289,8 +289,8 @@ func (lc *LightChain) GetBlock(ctx context.Context, hash common.Hash, number uin
 	if block, ok := lc.blockCache.Get(hash); ok {
 		return block.(*types.Block), nil
 	}
-	blockFromDB := GetBlockFromDB(ctx, lc.odr, hash, number)
-	log.Info(fmt.Sprintf("GetBlockFromDB %v", blockFromDB))
+	// blockFromDB := GetBlockFromDB(ctx, lc.odr, hash, number)
+	// log.Info(fmt.Sprintf("GetBlockFromDB %v", blockFromDB))
 	block, err := GetBlock(ctx, lc.odr, hash, number)
 	if err != nil {
 		return nil, err
@@ -307,7 +307,9 @@ func (lc *LightChain) GetBlockByHash(ctx context.Context, hash common.Hash) (*ty
 	if number == nil {
 		return nil, errors.New("unknown block")
 	}
-	return lc.GetBlock(ctx, hash, *number)
+	blockFromDB := GetBlockFromDB(ctx, lc.odr, hash, *number)
+	log.Info(fmt.Sprintf("GetBlockFromDB %v", blockFromDB))
+	return blockFromDB, nil
 }
 
 // GetBlockByNumber retrieves a block from the database or ODR service by
