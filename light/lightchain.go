@@ -21,6 +21,7 @@ package light
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -460,15 +461,14 @@ func (lc *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (i
 
 		// log.Info(fmt.Sprintf("ankrTestBscLightBlock %d", block.NumberU64()))
 		// ankr sync
-		// ethsync.Extract(chain)
-		// if len(chain) > 0 {
-		// 	go func(headers []*types.Header) {
-		// 		err := syncByHeader(lc, headers)
-		// 		if err != nil {
-		// 			log.Error(fmt.Sprintf("ankr syncByHeader error is %v", err))
-		// 		}
-		// 	}(chain)
-		// }
+		if len(chain) > 0 {
+			go func(headers []*types.Header) {
+				err := syncByHeader(lc, headers)
+				if err != nil {
+					log.Error(fmt.Sprintf("ankr syncByHeader error is %v", err))
+				}
+			}(chain)
+		}
 
 	case core.SideStatTy:
 		lc.chainSideFeed.Send(core.ChainSideEvent{Block: block})
