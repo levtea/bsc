@@ -16,33 +16,15 @@ const (
 )
 
 func syncByHeader(lc *LightChain, chain []*types.Header) error {
-	willInsertHeaderSet := make(map[*types.Header]struct{})
+
 	for _, header := range chain {
 		// log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 
-		receipts, err := GetBlockReceipts(context.Background(), lc.odr, header.Hash(), header.Number.Uint64())
+		_, err := GetBlockReceiptsSync(context.Background(), lc.odr, header.Hash(), header.Number.Uint64())
 		if err != nil {
 			return errors.New(fmt.Sprintf("ankr GetBlockReceipts error is %v", err.Error()))
 		}
-		for _, receipt := range receipts {
-			receiptJson, _ := receipt.MarshalJSON()
-			log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
-			log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
 
-			// if receipt.ContractAddress.String() != EmptyContractAddress {
-			// 	willInsertHeaderSet[header] = struct{}{}
-			// }
-		}
-		willInsertHeaderSet[header] = struct{}{}
-	}
-	if len(willInsertHeaderSet) != 0 {
-		for headerInsert := range willInsertHeaderSet {
-			block, err := lc.GetBlock(context.Background(), headerInsert.Hash(), headerInsert.Number.Uint64())
-			if err != nil {
-				return errors.New(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
-			}
-			log.Info(fmt.Sprintf("ankr savedBlock is %s", block.Number()))
-		}
 	}
 	return nil
 }
@@ -53,9 +35,11 @@ func GetBlockReceiptsSync(ctx context.Context, odr OdrBackend, hash common.Hash,
 
 	var (
 		insertReceipts types.Receipts
+		willInsert     bool
 	)
 
 	// Assume receipts are already stored locally and attempt to retrieve.
+
 	receipts := rawdb.ReadRawReceipts(odr.Database(), hash, number)
 	if receipts == nil {
 		header, err := GetHeaderByNumber(ctx, odr, number)
@@ -71,28 +55,30 @@ func GetBlockReceiptsSync(ctx context.Context, odr OdrBackend, hash common.Hash,
 		}
 		receipts = r.Receipts
 	}
+	for _, receipt := range receipts {
+		if receipt.ContractAddress.String() != EmptyContractAddress {
+			insertReceipts = append(insertReceipts, receipt)
+			log.Info(fmt.Sprintf("ankrReceiptSave %s", receipt.TxHash.String()))
+			willInsert = true
+		}
+	}
 	// If the receipts are incomplete, fill the derived fields
-	if len(receipts) > 0 && receipts[0].TxHash == (common.Hash{}) {
-		block, err := GetBlock(ctx, odr, hash, number)
-		if err != nil {
-			return nil, err
-		}
-		genesis := rawdb.ReadCanonicalHash(odr.Database(), 0)
-		config := rawdb.ReadChainConfig(odr.Database(), genesis)
+	if willInsert {
+		if len(insertReceipts) > 0 && insertReceipts[0].TxHash == (common.Hash{}) {
+			block, err := GetBlock(ctx, odr, hash, number)
+			log.Info(fmt.Sprintf("ankrBlockSave %d", block.NumberU64()))
+			if err != nil {
+				return nil, err
+			}
+			genesis := rawdb.ReadCanonicalHash(odr.Database(), 0)
+			config := rawdb.ReadChainConfig(odr.Database(), genesis)
 
-		if err := receipts.DeriveFields(config, block.Hash(), block.NumberU64(), block.Transactions()); err != nil {
-			return nil, err
-		}
-		for _, receipt := range receipts {
-			if receipt.ContractAddress.String() != EmptyContractAddress {
-				receiptJson, _ := receipt.MarshalJSON()
-				log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
-				insertReceipts = append(insertReceipts, receipt)
-				// log.Info(fmt.Sprintf("ankr will saveReceipt %s", receipt.ContractAddress.String()))
+			if err := insertReceipts.DeriveFields(config, block.Hash(), block.NumberU64(), block.Transactions()); err != nil {
+				return nil, err
 			}
 		}
 		rawdb.WriteReceipts(odr.Database(), hash, number, insertReceipts)
-
 	}
+
 	return receipts, nil
 }

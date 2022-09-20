@@ -309,6 +309,9 @@ func (lc *LightChain) GetBlockByHash(ctx context.Context, hash common.Hash) (*ty
 	}
 	blockFromDB := GetBlockFromDB(ctx, lc.odr, hash, *number)
 	log.Info(fmt.Sprintf("GetBlockFromDB %d", blockFromDB.NumberU64()))
+	if blockFromDB == nil {
+		lc.GetBlock(ctx, hash, *number)
+	}
 	return blockFromDB, nil
 }
 
