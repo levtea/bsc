@@ -297,7 +297,7 @@ func (lc *LightChain) GetBlock(ctx context.Context, hash common.Hash, number uin
 	}
 	// Cache the found block for next time and return
 	lc.blockCache.Add(block.Hash(), block)
-	return blockFromDB, nil
+	return block, nil
 }
 
 // GetBlockByHash retrieves a block from the database or ODR service by hash,
