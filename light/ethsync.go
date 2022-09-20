@@ -17,10 +17,6 @@ const (
 
 func syncByHeader(lc *LightChain, chain []*types.Header) error {
 	willInsertHeaderSet := make(map[*types.Header]struct{})
-	// log.Info(fmt.Sprintf("willInsertHeaderSet %v", willInsertHeaderSet))
-	for k := range willInsertHeaderSet {
-		log.Info(fmt.Sprintf("willInsertHeaderSet %v", k.Number))
-	}
 	for _, header := range chain {
 		log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 		// block
@@ -58,9 +54,9 @@ func syncByHeader(lc *LightChain, chain []*types.Header) error {
 			return errors.New(fmt.Sprintf("ankr GetBlockReceipts error is %v", err.Error()))
 		}
 		for _, receipt := range receipts {
-			receiptJson, _ := receipt.MarshalJSON()
-			log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
-			log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
+			// receiptJson, _ := receipt.MarshalJSON()
+			// log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
+			// log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
 
 			if receipt.ContractAddress.String() != EmptyContractAddress {
 				willInsertHeaderSet[header] = struct{}{}
@@ -128,8 +124,10 @@ func GetBlockReceiptsSync(ctx context.Context, odr OdrBackend, hash common.Hash,
 		}
 		for _, receipt := range receipts {
 			if receipt.ContractAddress.String() != EmptyContractAddress {
+				receiptJson, _ := receipt.MarshalJSON()
+				log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
 				insertReceipts = append(insertReceipts, receipt)
-				log.Info(fmt.Sprintf("ankr will saveReceipt %s", receipt.ContractAddress.String()))
+				// log.Info(fmt.Sprintf("ankr will saveReceipt %s", receipt.ContractAddress.String()))
 			}
 		}
 		rawdb.WriteReceipts(odr.Database(), hash, number, insertReceipts)
