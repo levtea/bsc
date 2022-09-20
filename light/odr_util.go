@@ -20,11 +20,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -69,10 +67,10 @@ func GetHeaderByNumber(ctx context.Context, odr OdrBackend, number uint64) (*typ
 	return r.Header, nil
 }
 
-func GetTransactionByHashFromDB(ctx context.Context, odr OdrBackend, hash common.Hash) *types.Transaction {
+func GetTransactionByHashFromDB(ctx context.Context, odr OdrBackend, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
 	db := odr.Database()
-	tx, _, _, _ := rawdb.ReadTransaction(db, hash)
-	return tx
+	tx, blockHash, blockNumber, txIndex := rawdb.ReadTransaction(db, hash)
+	return tx, blockHash, blockNumber, txIndex
 }
 
 // GetCanonicalHash retrieves the canonical block hash corresponding to the number.
@@ -300,23 +298,27 @@ func GetBloomBits(ctx context.Context, odr OdrBackend, bit uint, sections []uint
 // number of retrys, thus giving a weak guarantee.
 func GetTransaction(ctx context.Context, odr OdrBackend, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
 
-	txFromDB := GetTransactionByHashFromDB(ctx, odr, txHash)
+	// txFromDB := GetTransactionByHashFromDB(ctx, odr, txHash)
 
-	log.Info(fmt.Sprintf("GetTransactionByHashFromDB %v", txFromDB))
+	tx, blockHash, blockNumber, txIndex := GetTransactionByHashFromDB(ctx, odr, txHash)
 
-	r := &TxStatusRequest{Hashes: []common.Hash{txHash}}
-	if err := odr.RetrieveTxStatus(ctx, r); err != nil || r.Status[0].Status != core.TxStatusIncluded {
-		return nil, common.Hash{}, 0, 0, err
-	}
-	pos := r.Status[0].Lookup
-	// first ensure that we have the header, otherwise block body retrieval will fail
-	// also verify if this is a canonical block by getting the header by number and checking its hash
-	if header, err := GetHeaderByNumber(ctx, odr, pos.BlockIndex); err != nil || header.Hash() != pos.BlockHash {
-		return nil, common.Hash{}, 0, 0, err
-	}
-	body, err := GetBody(ctx, odr, pos.BlockHash, pos.BlockIndex)
-	if err != nil || uint64(len(body.Transactions)) <= pos.Index || body.Transactions[pos.Index].Hash() != txHash {
-		return nil, common.Hash{}, 0, 0, err
-	}
-	return body.Transactions[pos.Index], pos.BlockHash, pos.BlockIndex, pos.Index, nil
+	return tx, blockHash, blockNumber, txIndex, nil
+
+	// log.Info(fmt.Sprintf("GetTransactionByHashFromDB %v", txFromDB))
+
+	// r := &TxStatusRequest{Hashes: []common.Hash{txHash}}
+	// if err := odr.RetrieveTxStatus(ctx, r); err != nil || r.Status[0].Status != core.TxStatusIncluded {
+	// 	return nil, common.Hash{}, 0, 0, err
+	// }
+	// pos := r.Status[0].Lookup
+	// // first ensure that we have the header, otherwise block body retrieval will fail
+	// // also verify if this is a canonical block by getting the header by number and checking its hash
+	// if header, err := GetHeaderByNumber(ctx, odr, pos.BlockIndex); err != nil || header.Hash() != pos.BlockHash {
+	// 	return nil, common.Hash{}, 0, 0, err
+	// }
+	// body, err := GetBody(ctx, odr, pos.BlockHash, pos.BlockIndex)
+	// if err != nil || uint64(len(body.Transactions)) <= pos.Index || body.Transactions[pos.Index].Hash() != txHash {
+	// 	return nil, common.Hash{}, 0, 0, err
+	// }
+	// return body.Transactions[pos.Index], pos.BlockHash, pos.BlockIndex, pos.Index, nil
 }
