@@ -172,6 +172,10 @@ func GetBlockFromDB(ctx context.Context, odr OdrBackend, hash common.Hash, numbe
 	db := odr.Database()
 	body := rawdb.ReadBody(db, hash, number)
 
+	if body == nil {
+		return nil
+	}
+
 	// Reassemble the block and return
 	return types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
 }
