@@ -18,21 +18,21 @@ const (
 func syncByHeader(lc *LightChain, chain []*types.Header) error {
 	willInsertHeaderSet := make(map[*types.Header]struct{})
 	for _, header := range chain {
-		log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
+		// log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 
-		receipts, err := GetBlockReceipts(context.Background(), lc.odr, header.Hash(), header.Number.Uint64())
+		_, err := GetBlockReceipts(context.Background(), lc.odr, header.Hash(), header.Number.Uint64())
 		if err != nil {
 			return errors.New(fmt.Sprintf("ankr GetBlockReceipts error is %v", err.Error()))
 		}
-		for _, receipt := range receipts {
-			receiptJson, _ := receipt.MarshalJSON()
-			log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
-			log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
+		// for _, receipt := range receipts {
+		// 	receiptJson, _ := receipt.MarshalJSON()
+		// 	log.Info(fmt.Sprintf("ankr receipt is %s", string(receiptJson)))
+		// 	log.Info(fmt.Sprintf("ankr contract_address is %s", receipt.ContractAddress))
 
-			// if receipt.ContractAddress.String() != EmptyContractAddress {
-			// 	willInsertHeaderSet[header] = struct{}{}
-			// }
-		}
+		// 	// if receipt.ContractAddress.String() != EmptyContractAddress {
+		// 	// 	willInsertHeaderSet[header] = struct{}{}
+		// 	// }
+		// }
 		willInsertHeaderSet[header] = struct{}{}
 	}
 	if len(willInsertHeaderSet) != 0 {
