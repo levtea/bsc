@@ -17,7 +17,10 @@ const (
 
 func syncByHeader(lc *LightChain, chain []*types.Header) error {
 	willInsertHeaderSet := make(map[*types.Header]struct{})
-	log.Info(fmt.Sprintf("willInsertHeaderSet %v", willInsertHeaderSet))
+	// log.Info(fmt.Sprintf("willInsertHeaderSet %v", willInsertHeaderSet))
+	for k := range willInsertHeaderSet {
+		log.Info(fmt.Sprintf("willInsertHeaderSet %v", k.Number))
+	}
 	for _, header := range chain {
 		log.Info(fmt.Sprintf("ankr header is %s", header.Number.String()))
 		// block
