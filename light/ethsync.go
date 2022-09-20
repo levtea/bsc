@@ -35,7 +35,6 @@ func GetBlockReceiptsSync(ctx context.Context, odr OdrBackend, hash common.Hash,
 
 	var (
 		insertReceipts types.Receipts
-		willInsert     bool
 	)
 
 	// Assume receipts are already stored locally and attempt to retrieve.
@@ -55,32 +54,31 @@ func GetBlockReceiptsSync(ctx context.Context, odr OdrBackend, hash common.Hash,
 		}
 		receipts = r.Receipts
 	}
+	// If the receipts are incomplete, fill the derived fields
+	if len(receipts) > 0 && receipts[0].TxHash == (common.Hash{}) {
+		block, err := GetBlock(ctx, odr, hash, number)
+		log.Info(fmt.Sprintf("ankrBlockSave %d", block.NumberU64()))
+		if err != nil {
+			return nil, err
+		}
+		genesis := rawdb.ReadCanonicalHash(odr.Database(), 0)
+		config := rawdb.ReadChainConfig(odr.Database(), genesis)
+
+		if err := receipts.DeriveFields(config, block.Hash(), block.NumberU64(), block.Transactions()); err != nil {
+			return nil, err
+		}
+	}
+
 	for _, receipt := range receipts {
-		receiptJson, _ := receipt.MarshalJSON()
-		log.Info(fmt.Sprintf("ankrReceiptSaveReceipt %s", receiptJson))
 		if receipt.ContractAddress.String() != EmptyContractAddress {
 			insertReceipts = append(insertReceipts, receipt)
 			log.Info(fmt.Sprintf("ankrReceiptSave %s", receipt.TxHash.String()))
-			willInsert = true
+			receiptJson, _ := receipt.MarshalJSON()
+			log.Info(fmt.Sprintf("ankrReceiptSaveReceipt %s", receiptJson))
 		}
 	}
-	// If the receipts are incomplete, fill the derived fields
-	if willInsert {
-		if len(insertReceipts) > 0 && insertReceipts[0].TxHash == (common.Hash{}) {
-			block, err := GetBlock(ctx, odr, hash, number)
-			log.Info(fmt.Sprintf("ankrBlockSave %d", block.NumberU64()))
-			if err != nil {
-				return nil, err
-			}
-			genesis := rawdb.ReadCanonicalHash(odr.Database(), 0)
-			config := rawdb.ReadChainConfig(odr.Database(), genesis)
 
-			if err := insertReceipts.DeriveFields(config, block.Hash(), block.NumberU64(), block.Transactions()); err != nil {
-				return nil, err
-			}
-		}
-		rawdb.WriteReceipts(odr.Database(), hash, number, insertReceipts)
-	}
+	rawdb.WriteReceipts(odr.Database(), hash, number, insertReceipts)
 
 	return receipts, nil
 }
