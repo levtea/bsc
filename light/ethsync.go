@@ -37,7 +37,7 @@ func syncByHeader(lc *LightChain, chain []*types.Header) error {
 	}
 	if len(willInsertHeaderSet) != 0 {
 		for headerInsert := range willInsertHeaderSet {
-			block, err := lc.GetBlockByHash(context.Background(), headerInsert.Hash())
+			block, err := lc.GetBlock(context.Background(), headerInsert.Hash(), headerInsert.Number.Uint64())
 			if err != nil {
 				return errors.New(fmt.Sprintf("ankr GetBlockByHash error is %v", err))
 			}
