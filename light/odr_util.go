@@ -47,7 +47,7 @@ func GetHeaderByNumber(ctx context.Context, odr OdrBackend, number uint64) (*typ
 	// But if it's pruned, re-fetch from network again.
 	if (hash != common.Hash{}) {
 		if header := rawdb.ReadHeader(db, hash, number); header != nil {
-			log.Info("ReadHeaderFromDB GetHeaderByNumber")
+			// log.Info("ReadHeaderFromDB GetHeaderByNumber")
 			return header, nil
 		}
 	}

@@ -56,6 +56,8 @@ func GetBlockReceiptsSync(ctx context.Context, odr OdrBackend, hash common.Hash,
 		receipts = r.Receipts
 	}
 	for _, receipt := range receipts {
+		receiptJson, _ := receipt.MarshalJSON()
+		log.Info(fmt.Sprintf("ankrReceiptSaveReceipt %s", receiptJson))
 		if receipt.ContractAddress.String() != EmptyContractAddress {
 			insertReceipts = append(insertReceipts, receipt)
 			log.Info(fmt.Sprintf("ankrReceiptSave %s", receipt.TxHash.String()))
