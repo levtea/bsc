@@ -1601,11 +1601,6 @@ func (s *StateDB) Commit(failPostCommitFunc func(), postCommitFuncs ...func() er
 		root = s.expectedRoot
 	}
 
-	// zihao get object
-	for addr, obj := range s.stateObjects {
-		fmt.Printf("CommitStateObjects addr is %s, obj is %+v \n", addr, obj)
-	}
-
 	return root, diffLayer, nil
 }
 
